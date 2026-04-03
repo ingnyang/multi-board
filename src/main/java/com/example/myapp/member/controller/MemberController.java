@@ -24,29 +24,34 @@ public class MemberController {
 	@Autowired
 	IMemberService memberService;
 
-	@RequestMapping(value="/member/insert", method=RequestMethod.GET)
-	public String insertMember(HttpSession session) {
+	@RequestMapping(value = "/member/insert", method = RequestMethod.GET)
+	public String insertMember(HttpSession session, Model model) {
+
 		String csrfToken = UUID.randomUUID().toString();
-        session.setAttribute("csrfToken", csrfToken);
-		logger.info("/member/insert, GET", csrfToken);
+		session.setAttribute("csrfToken", csrfToken);
+
+		model.addAttribute("member", new Member()); // 반드시 추가
+
+		logger.info("/member/insert, GET {}", csrfToken);
+
 		return "member/form";
 	}
-	
-	@RequestMapping(value="/member/insert", method=RequestMethod.POST)
+
+	@RequestMapping(value = "/member/insert", method = RequestMethod.POST)
 	public String insertMember(Member member, String csrfToken, HttpSession session, Model model) {
-		if(csrfToken==null || "".equals(csrfToken)) {
+		if (csrfToken == null || "".equals(csrfToken)) {
 			throw new RuntimeException("CSRF 토큰이 없습니다.");
-		}else if(!csrfToken.equals(session.getAttribute("csrfToken"))) {
+		} else if (!csrfToken.equals(session.getAttribute("csrfToken"))) {
 			throw new RuntimeException("잘 못된 접근이 감지되었습니다.");
 		}
 		try {
-			if(!member.getPassword().equals(member.getPassword2())) {
+			if (!member.getPassword().equals(member.getPassword2())) {
 				model.addAttribute("member", member);
 				model.addAttribute("message", "MEMBER_PW_RE");
 				return "member/form";
 			}
 			memberService.insertMember(member);
-		}catch(DuplicateKeyException e) {
+		} catch (DuplicateKeyException e) {
 			member.setUserid(null);
 			model.addAttribute("member", member);
 			model.addAttribute("message", "ID_ALREADY_EXIST");
@@ -55,98 +60,98 @@ public class MemberController {
 		session.invalidate();
 		return "home";
 	}
-	
-	@RequestMapping(value="/member/login", method=RequestMethod.GET)
+
+	@RequestMapping(value = "/member/login", method = RequestMethod.GET)
 	public String login() {
 		return "member/login";
 	}
-	
-	@RequestMapping(value="/member/login", method=RequestMethod.POST)
+
+	@RequestMapping(value = "/member/login", method = RequestMethod.POST)
 	public String login(String userid, String password, HttpSession session, Model model) {
 		Member member = memberService.selectMember(userid);
-		if(member != null) {
+		if (member != null) {
 			logger.info(member.toString());
 			String dbPassword = member.getPassword();
-			if(dbPassword.equals(password)) { // 비밀번호 일치
+			if (dbPassword.equals(password)) { // 비밀번호 일치
 				session.setMaxInactiveInterval(600); // 세션 타임아웃 10분
 				session.setAttribute("userid", userid);
 				session.setAttribute("name", member.getName());
 				session.setAttribute("email", member.getEmail());
-			}else {	// 비밀번호가 다름
+			} else { // 비밀번호가 다름
 				model.addAttribute("message", "WRONG_PASSWORD");
 			}
-		}else { // 아이디가 없음
+		} else { // 아이디가 없음
 			session.invalidate();
 			model.addAttribute("message", "USER_NOT_FOUND");
 		}
 		return "member/login";
 	}
-	
-	@RequestMapping(value="/member/logout", method=RequestMethod.GET)
+
+	@RequestMapping(value = "/member/logout", method = RequestMethod.GET)
 	public String logout(HttpSession session, HttpServletRequest request) {
 		session.invalidate();
 		return "home";
 	}
-	
-	@RequestMapping(value="/member/update", method=RequestMethod.GET)
+
+	@RequestMapping(value = "/member/update", method = RequestMethod.GET)
 	public String updateMember(HttpSession session, Model model) {
-		String userid = (String)session.getAttribute("userid");
-		if(userid != null && !userid.equals("")) {
+		String userid = (String) session.getAttribute("userid");
+		if (userid != null && !userid.equals("")) {
 			Member member = memberService.selectMember(userid);
 			model.addAttribute("member", member);
 			model.addAttribute("message", "UPDATE_USER_INFO");
 			return "member/update";
-		}else {
+		} else {
 			model.addAttribute("message", "NOT_LOGIN_USER");
 			return "member/login";
 		}
 	}
-	
-	@RequestMapping(value="/member/update", method=RequestMethod.POST)
+
+	@RequestMapping(value = "/member/update", method = RequestMethod.POST)
 	public String updateMember(Member member, HttpSession session, Model model) {
-		try{
+		try {
 			memberService.updateMember(member);
 			model.addAttribute("message", "UPDATED_MEMBER_INFO");
 			model.addAttribute("member", member);
 			session.setAttribute("email", member.getEmail());
 			return "member/login";
-		}catch(Exception e){
+		} catch (Exception e) {
 			model.addAttribute("message", e.getMessage());
 			e.printStackTrace();
 			return "member/error";
 		}
 	}
-	
-	@RequestMapping(value="/member/delete", method=RequestMethod.GET)
+
+	@RequestMapping(value = "/member/delete", method = RequestMethod.GET)
 	public String deleteMember(HttpSession session, Model model) {
-		String userid = (String)session.getAttribute("userid");
-		if(userid != null && !userid.equals("")) {
+		String userid = (String) session.getAttribute("userid");
+		if (userid != null && !userid.equals("")) {
 			Member member = memberService.selectMember(userid);
 			model.addAttribute("member", member);
 			model.addAttribute("message", "MEMBER_PW_RE");
 			return "member/delete";
-		}else {
+		} else {
 			model.addAttribute("message", "NOT_LOGIN_USER");
 			return "member/login";
 		}
 	}
-	
-	@RequestMapping(value="/member/delete", method=RequestMethod.POST)
+
+	@RequestMapping(value = "/member/delete", method = RequestMethod.POST)
 	public String deleteMember(String password, HttpSession session, Model model) {
 		try {
 			Member member = new Member();
-			member.setUserid((String)session.getAttribute("userid"));
+			member.setUserid((String) session.getAttribute("userid"));
 			String dbpw = memberService.getPassword(member.getUserid());
-			if(password != null && password.equals(dbpw)) {
+			if (password != null && password.equals(dbpw)) {
 				member.setPassword(password);
-				memberService.deleteMember(member) ;
+				memberService.deleteMember(member);
 				session.invalidate(); // 회원정보가 삭제되면 로그아웃 처리
 				return "member/login";
-			}else {
+			} else {
 				model.addAttribute("message", "WRONG_PASSWORD");
 				return "member/delete";
 			}
-		}catch(Exception e){
+		} catch (Exception e) {
 			model.addAttribute("message", "DELETE_FAIL");
 			e.printStackTrace();
 			return "member/delete";
