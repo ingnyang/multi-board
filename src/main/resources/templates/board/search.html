@@ -11,7 +11,7 @@
 			<div class="col-md-6 pc">
 				<h2>
 					[[#{SEARCH_RESULT}]]
-					<small th:if="${name==null}" th:text="#{LOGIN}">LOGIN</small>
+					<small th:if="${session.userid==null}" th:text="#{LOGIN}">LOGIN</small>
 				</h2>
 			</div>
 			<div class="col-md-6">
